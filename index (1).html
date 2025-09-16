@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistem Tes Psikologi DISC & Kraepelin</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .disc-option {
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+        .disc-option:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .disc-option.selected-least {
+            @apply bg-red-100 border-red-500 text-red-800;
+        }
+        .disc-option.selected-most {
+            @apply bg-green-100 border-green-500 text-green-800;
+        }
+        .answer-input {
+            width: 30px;
+            height: 30px;
+            text-align: center;
+            font-family: 'Courier New', monospace;
+            font-size: 16px;
+            border: 2px solid #e5e7eb;
+            border-radius: 4px;
+        }
+        .answer-input:focus {
+            border-color: #3b82f6;
+            outline: none;
+        }
+        .answer-input.correct {
+            border-color: #10b981;
+            background-color: #f0fdf4;
+        }
+        .answer-input.incorrect {
+            border-color: #ef4444;
+            background-color: #fef2f2;
+        }
+        .number-row {
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .numbers-container {
+            max-height: 60vh;
+            overflow-y: auto;
+            padding: 20px;
+            background: #fafafa;
+            border-radius: 8px;
+        }
+        .timer-alert {
+            animation: pulse 1s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        .tab-button {
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .tab-button.active {
+            @apply bg-blue-600 text-white;
+        }
+        .tab-button:not(.active) {
+            @apply bg-gray-200 text-gray-700 hover:bg-gray-300;
+        }
+        .admin-tab {
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .admin-tab.active {
+            @apply bg-blue-600 text-white;
+        }
+        .admin-tab:not(.active) {
+            @apply bg-gray-100 text-gray-700 hover:bg-gray-200;
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen">
+    <!-- Header with Tabs -->
+    <header class="bg-white shadow-sm border-b border-gray-200">
+        <div class="max-w-6xl mx-auto px-6 py-4">
+            <div class="flex justify-between items-center mb-4">
+                <div>
+                    <h1 class="text-2xl font-bold text-gray-800">Sistem Tes Psikologi</h1>
+                    <p class="text-gray-600">DISC & Kraepelin Assessment</p>
+                </div>
+                <div id="participantInfo" class="text-right hidden">
+                    <p class="text-sm text-gray-600">Peserta:</p>
+                    <p id="participantName" class="font-semibold text-gray-800">-</p>
+                </div>
+            </div>
+            
+            <!-- Tab Navigation -->
+            <div class="flex space-x-2">
+                <button id="tabBiodata" class="tab-button active px-4 py-2 rounded-lg font-medium">
+                    📋 Tes Psikologi
+                </button>
+                <button id="tabAdmin" class="tab-button px-4 py-2 rounded-lg font-medium">
+                    🔐 Admin Portal
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Progress Bar (Only for student tests) -->
+    <div id="progressSection" class="max-w-6xl mx-auto px-6 py-4 hidden">
+        <div class="bg-white rounded-lg p-4 shadow-sm">
+            <div class="flex justify-between items-center mb-2">
+                <span id="progressLabel" class="text-sm font-medium text-gray-700">Progress</span>
+                <span id="progressText" class="text-sm text-gray-600">0 / 24</span>
+            </div>
+            <div class="w-full bg-gray-200 rounded-full h-3">
+                <div id="progressBar" class="bg-blue-600 h-3 rounded-full transition-all duration-300" style="width: 0%"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Timer Display (Only for Kraepelin test) -->
+    <div id="timerSection" class="max-w-6xl mx-auto px-6 py-4 hidden">
+        <div class="bg-white rounded-lg p-4 shadow-sm">
+            <div class="flex justify-between items-center">
+                <div class="flex items-center space-x-4">
+                    <span class="text-sm font-medium text-gray-700">Waktu Tersisa:</span>
+                    <div id="timer" class="text-3xl font-bold text-green-600 font-mono">10:00</div>
+                </div>
+                <div class="text-right">
+                    <div class="text-sm text-gray-600">Progress:</div>
+                    <div class="text-lg font-semibold text-gray-800">
+                        <span id="answeredCount">0</span> soal dikerjakan
+                    </div>
+                </div>
+            </div>
+            <div class="w-full bg-gray-200 rounded-full h-2 mt-3">
+                <div id="timeProgress" class="bg-green-600 h-2 rounded-full transition-all duration-1000" style="width: 100%"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <main class="max-w-6xl mx-auto px-6 py-6">
+        <!-- Student Test Content -->
+        <div id="studentContent">
+            <!-- Welcome & Biodata Form -->
+            <div id="welcomeSection" class="bg-white rounded-lg shadow-lg p-8 mb-8">
+                <div class="text-center mb-8">
+                    <h2 class="text-3xl font-bold text-gray-800 mb-4">Selamat Datang</h2>
+                    <p class="text-lg text-gray-600 mb-6">
+                        Anda akan mengikuti Tes Psikologi yang terdiri dari dua bagian:
+                    </p>
+                    <div class="grid md:grid-cols-2 gap-6 mb-8">
+                        <div class="bg-blue-50 p-6 rounded-lg border border-blue-200">
+                            <h3 class="text-xl font-semibold text-blue-800 mb-2">Tes DISC</h3>
+                            <p class="text-blue-700">24 pertanyaan untuk mengetahui tipe kepribadian dan gaya kerja Anda</p>
+                        </div>
+                        <div class="bg-green-50 p-6 rounded-lg border border-green-200">
+                            <h3 class="text-xl font-semibold text-green-800 mb-2">Tes Kraepelin</h3>
+                            <p class="text-green-700">Tes konsentrasi dan kecepatan kerja selama 10 menit</p>
+                        </div>
+                    </div>
+                    <div class="bg-yellow-50 border border-yellow-200 p-4 rounded-lg">
+                        <p class="text-yellow-800 font-medium">
+                            📋 Silakan isi data diri Anda terlebih dahulu sebelum memulai tes
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Biodata Form -->
+                <form id="biodataForm" class="max-w-2xl mx-auto">
+                    <div class="grid gap-6">
+                        <!-- Nama Lengkap -->
+                        <div>
+                            <label for="namaLengkap" class="block text-sm font-semibold text-gray-700 mb-2">
+                                Nama Lengkap *
+                            </label>
+                            <input 
+                                type="text" 
+                                id="namaLengkap" 
+                                name="namaLengkap"
+                                required
+                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                placeholder="Masukkan nama lengkap Anda"
+                            />
+                        </div>
+
+                        <!-- Tanggal Lahir -->
+                        <div>
+                            <label for="tanggalLahir" class="block text-sm font-semibold text-gray-700 mb-2">
+                                Tanggal Lahir *
+                            </label>
+                            <input 
+                                type="date" 
+                                id="tanggalLahir" 
+                                name="tanggalLahir"
+                                required
+                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            />
+                        </div>
+
+                        <!-- Posisi/Jabatan -->
+                        <div>
+                            <label for="posisi" class="block text-sm font-semibold text-gray-700 mb-2">
+                                Posisi/Jabatan *
+                            </label>
+                            <select 
+                                id="posisi" 
+                                name="posisi"
+                                required
+                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            >
+                                <option value="">Pilih posisi Anda</option>
+                                <option value="Apoteker">Apoteker</option>
+                                <option value="Health Advisor">Health Advisor</option>
+                                <option value="Tenaga Teknis Kefarmasian">Tenaga Teknis Kefarmasian</option>
+                                <option value="Other">Other</option>
+                            </select>
+                        </div>
+
+                        <!-- Custom Position Input (Hidden by default) -->
+                        <div id="customPosition" class="hidden">
+                            <label for="posisiCustom" class="block text-sm font-semibold text-gray-700 mb-2">
+                                Please isi manual *
+                            </label>
+                            <input 
+                                type="text" 
+                                id="posisiCustom" 
+                                name="posisiCustom"
+                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                placeholder="Masukkan posisi/jabatan Anda"
+                            />
+                        </div>
+                    </div>
+
+                    <!-- Submit Button -->
+                    <div class="mt-8 text-center">
+                        <button 
+                            type="submit" 
+                            id="mulaiTes"
+                            class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-8 py-4 rounded-lg text-lg transition duration-300 shadow-lg hover:shadow-xl"
+                        >
+                            🚀 Mulai Tes
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Instructions -->
+            <div class="bg-white rounded-lg shadow-lg p-6">
+                <h3 class="text-xl font-semibold text-gray-800 mb-4">📝 Petunjuk Tes:</h3>
+                <div class="grid md:grid-cols-2 gap-6">
+                    <div>
+                        <h4 class="font-semibold text-blue-800 mb-2">Tes DISC:</h4>
+                        <ul class="text-sm text-gray-700 space-y-1">
+                            <li>• 24 pertanyaan tentang kepribadian</li>
+                            <li>• Pilih 1 yang PALING TIDAK sesuai (kiri) dan 1 yang PALING sesuai (kanan)</li>
+                            <li>• Tidak ada batas waktu</li>
+                            <li>• Jawab dengan jujur sesuai karakter Anda</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h4 class="font-semibold text-green-800 mb-2">Tes Kraepelin:</h4>
+                        <ul class="text-sm text-gray-700 space-y-1">
+                            <li>• Penjumlahan angka selama 10 menit</li>
+                            <li>• Jumlahkan 2 angka bersebelahan</li>
+                            <li>• Tulis angka terakhir dari hasil penjumlahan</li>
+                            <li>• Contoh: 7 + 8 = 15 → tulis 5</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- DISC Test Section -->
+            <div id="discSection" class="hidden">
+                <!-- DISC Instructions -->
+                <div id="discInstructions" class="bg-white rounded-lg shadow-lg p-8 mb-6">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">📋 Petunjuk Tes DISC</h2>
+                    <div class="bg-blue-50 border border-blue-200 p-6 rounded-lg mb-6">
+                        <h3 class="font-semibold text-blue-800 mb-3">Cara Mengerjakan:</h3>
+                        <ul class="space-y-2 text-blue-700">
+                            <li>• Pada setiap pertanyaan, terdapat 4 kata sifat/karakteristik</li>
+                            <li>• Pilih <strong>1 kata di kolom KIRI</strong> yang PALING TIDAK sesuai dengan diri Anda</li>
+                            <li>• Pilih <strong>1 kata di kolom KANAN</strong> yang PALING sesuai dengan diri Anda</li>
+                            <li>• Anda tidak boleh memilih kata yang sama untuk kedua pilihan</li>
+                            <li>• Sistem akan otomatis lanjut ke pertanyaan berikutnya setelah Anda memilih keduanya</li>
+                            <li>• Tidak ada jawaban benar atau salah, jawablah sesuai karakter Anda</li>
+                        </ul>
+                    </div>
+                    <div class="text-center">
+                        <button 
+                            id="startDiscBtn" 
+                            class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-8 py-4 rounded-lg text-lg transition duration-300"
+                        >
+                            🚀 Mulai Tes DISC
+                        </button>
+                    </div>
+                </div>
+
+                <!-- DISC Test Content -->
+                <div id="discTestContent" class="hidden">
+                    <div class="bg-white rounded-lg shadow-lg p-8 mb-6">
+                        <div class="text-center mb-8">
+                            <h2 class="text-2xl font-bold text-gray-800 mb-2">
+                                Pertanyaan <span id="currentQuestionNumber">1</span> dari 24
+                            </h2>
+                            <p class="text-lg text-gray-600" id="questionText">
+                                Saya adalah orang yang...
+                            </p>
+                        </div>
+
+                        <!-- Column Layout for DISC Options -->
+                        <div class="grid grid-cols-2 gap-8 mb-8">
+                            <!-- Left Column: Paling Tidak Sesuai -->
+                            <div class="bg-red-50 p-6 rounded-lg border-2 border-red-200">
+                                <h3 class="text-lg font-bold text-red-700 mb-4 text-center">
+                                    ❌ Paling TIDAK Sesuai
+                                </h3>
+                                <div id="leastOptions" class="space-y-3">
+                                    <!-- Options will be populated by JavaScript -->
+                                </div>
+                                <div class="mt-4 p-3 bg-red-100 rounded border">
+                                    <p class="text-sm text-red-700 font-medium">Dipilih:</p>
+                                    <p id="leastSelection" class="text-red-800 font-semibold">Belum dipilih</p>
+                                </div>
+                            </div>
+
+                            <!-- Right Column: Paling Sesuai -->
+                            <div class="bg-green-50 p-6 rounded-lg border-2 border-green-200">
+                                <h3 class="text-lg font-bold text-green-700 mb-4 text-center">
+                                    ✅ Paling Sesuai
+                                </h3>
+                                <div id="mostOptions" class="space-y-3">
+                                    <!-- Options will be populated by JavaScript -->
+                                </div>
+                                <div class="mt-4 p-3 bg-green-100 rounded border">
+                                    <p class="text-sm text-green-700 font-medium">Dipilih:</p>
+                                    <p id="mostSelection" class="text-green-800 font-semibold">Belum dipilih</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Navigation -->
+                        <div class="flex justify-center">
+                            <button 
+                                id="discPrevBtn" 
+                                class="bg-gray-500 hover:bg-gray-600 text-white px-6 py-3 rounded-lg font-medium transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                                disabled
+                            >
+                                ← Sebelumnya
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- DISC Summary Page -->
+                <div id="discSummary" class="hidden">
+                    <div class="bg-white rounded-lg shadow-lg p-8">
+                        <h2 class="text-2xl font-bold text-gray-800 mb-6 text-center">📋 Ringkasan Jawaban DISC</h2>
+                        
+                        <div class="mb-8">
+                            <p class="text-gray-600 text-center mb-6">
+                                Berikut adalah ringkasan jawaban Anda. Periksa kembali sebelum melanjutkan ke tes Kraepelin.
+                            </p>
+                            
+                            <div id="discSummaryList" class="space-y-4 max-h-96 overflow-y-auto">
+                                <!-- Summary will be populated by JavaScript -->
+                            </div>
+                        </div>
+
+                        <div class="text-center space-x-4">
+                            <button 
+                                id="discEditBtn" 
+                                class="bg-gray-500 hover:bg-gray-600 text-white px-6 py-3 rounded-lg font-medium transition duration-200"
+                            >
+                                📝 Edit Jawaban
+                            </button>
+                            <button 
+                                id="submitDiscBtn" 
+                                class="bg-green-600 hover:bg-green-700 text-white px-8 py-3 rounded-lg font-medium text-lg transition duration-200"
+                            >
+                                ✅ Submit & Continue to Pauli Test
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Kraepelin Test Section -->
+            <div id="kraepelinSection" class="hidden">
+                <!-- Kraepelin Instructions -->
+                <div id="kraepelinInstructions" class="bg-white rounded-lg shadow-lg p-8 mb-6">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">📋 Petunjuk Tes Kraepelin</h2>
+                    
+                    <div class="bg-green-50 border border-green-200 p-6 rounded-lg mb-6">
+                        <h3 class="font-semibold text-green-800 mb-3">Cara Mengerjakan:</h3>
+                        <ul class="space-y-2 text-green-700">
+                            <li>• Anda memiliki waktu <strong>10 menit</strong> untuk mengerjakan tes ini</li>
+                            <li>• Jumlahkan <strong>2 angka yang berdekatan</strong> di setiap baris</li>
+                            <li>• Tuliskan <strong>angka terakhir</strong> dari hasil penjumlahan</li>
+                            <li>• <strong>Contoh:</strong> 7 + 8 = 15 → tulis <span class="font-bold bg-yellow-200 px-1 rounded">5</span></li>
+                            <li>• <strong>Contoh:</strong> 3 + 4 = 7 → tulis <span class="font-bold bg-yellow-200 px-1 rounded">7</span></li>
+                            <li>• Kerjakan sebanyak mungkin, tidak perlu urut dari atas</li>
+                            <li>• Anda dapat <strong>submit lebih awal</strong> dengan tombol Submit di bawah</li>
+                        </ul>
+                    </div>
+
+                    <div class="text-center">
+                        <button 
+                            id="startKraepelinBtn" 
+                            class="bg-green-600 hover:bg-green-700 text-white font-semibold px-8 py-4 rounded-lg text-lg transition duration-300"
+                        >
+                            🚀 Mulai Tes Kraepelin
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Kraepelin Test Content -->
+                <div id="kraepelinTestContent" class="hidden">
+                    <div class="bg-white rounded-lg shadow-lg p-6">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-xl font-bold text-gray-800">Lembar Soal</h3>
+                            <button 
+                                id="submitKraepelinBtn"
+                                class="bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-lg font-medium transition duration-200"
+                            >
+                                🏁 Submit Tes Sekarang
+                            </button>
+                        </div>
+                        
+                        <!-- Numbers Grid -->
+                        <div id="numbersContainer" class="numbers-container">
+                            <!-- Will be populated by JavaScript -->
+                        </div>
+
+                        <div class="mt-4 text-center">
+                            <button 
+                                id="submitKraepelinBtn2"
+                                class="bg-red-600 hover:bg-red-700 text-white px-8 py-4 rounded-lg font-medium text-lg transition duration-200"
+                            >
+                                🏁 Submit Tes Sekarang
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Completion Section -->
+            <div id="completionSection" class="hidden bg-white rounded-lg shadow-lg p-8 text-center">
+                <div class="mb-6">
+                    <div class="text-6xl mb-4">🎉</div>
+                    <h2 class="text-3xl font-bold text-gray-800 mb-2">Tes Selesai!</h2>
+                    <p class="text-gray-600" id="completionMessage">Terima kasih telah menyelesaikan tes psikologi</p>
+                </div>
+                
+                <div class="bg-green-50 border border-green-200 p-6 rounded-lg mb-6">
+                    <h4 class="font-semibold text-green-800 mb-3">📊 Ringkasan Hasil:</h4>
+                    <div id="testResults">
+                        <!-- Results will be populated by JavaScript -->
+                    </div>
+                </div>
+
+                <p class="text-gray-600 mb-6">
+                    Hasil Anda telah tersimpan dan akan segera dianalisis oleh tim HR.
+                </p>
+
+                <button 
+                    id="restartTestBtn" 
+                    class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-8 py-4 rounded-lg text-lg transition duration-300"
+                >
+                    Mulai Tes Baru
+                </button>
+            </div>
+        </div>
+
+        <!-- Admin Content -->
+        <div id="adminContent" class="hidden">
+            <!-- Admin Login -->
+            <div id="adminLogin" class="bg-white rounded-lg shadow-lg p-8 max-w-md mx-auto">
+                <div class="text-center mb-6">
+                    <h2 class="text-2xl font-bold text-gray-800">Admin Login</h2>
+                    <p class="text-gray-600">Sistem Tes Psikologi DISC & Kraepelin</p>
+                </div>
+                
+                <form id="adminLoginForm">
+                    <div class="space-y-4">
+                        <div>
+                            <label for="adminUsername" class="block text-sm font-medium text-gray-700 mb-2">Username</label>
+                            <input 
+                                type="text" 
+                                id="adminUsername" 
+                                required
+                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                placeholder="Masukkan username"
+                            />
+                        </div>
+                        
+                        <div>
+                            <label for="adminPassword" class="block text-sm font-medium text-gray-700 mb-2">Password</label>
+                            <input 
+                                type="password" 
+                                id="adminPassword" 
+                                required
+                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                placeholder="Masukkan password"
+                            />
+                        </div>
+                    </div>
+
+                    <div class="mt-6">
+                        <button 
+                            type="submit" 
+                            class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 rounded-lg transition duration-200"
+                        >
+                            Login
+                        </button>
+                    </div>
+
+                    <div class="mt-4 text-center">
+                        <p class="text-xs text-gray-500">Demo: admin / Alpro123!</p>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Admin Dashboard -->
+            <div id="adminDashboard" class="hidden">
+                <!-- Admin Header -->
+                <div class="bg-white rounded-lg shadow-sm p-6 mb-6">
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <h2 class="text-2xl font-bold text-gray-800">Admin Dashboard</h2>
+                            <p class="text-gray-600">Manajemen Tes Psikologi</p>
+                        </div>
+                        <button 
+                            id="adminLogoutBtn" 
+                            class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm transition duration-200"
+                        >
+                            Logout
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Admin Sub-Tabs -->
+                <div class="bg-white rounded-lg shadow-sm p-4 mb-6">
+                    <div class="flex space-x-2 overflow-x-auto">
+                        <button id="discResultsTab" class="admin-tab active px-4 py-2 rounded-lg font-medium whitespace-nowrap">
+                            🧠 DISC Results
+                        </button>
+                        <button id="pauliResultsTab" class="admin-tab px-4 py-2 rounded-lg font-medium whitespace-nowrap">
+                            🔢 Pauli Results
+                        </button>
+                        <button id="combinedAnalysisTab" class="admin-tab px-4 py-2 rounded-lg font-medium whitespace-nowrap">
+                            📋 Combined Analysis
+                        </button>
+                    </div>
+                </div>
+
+
+
+                <!-- DISC Results View -->
+                <div id="discResultsView" class="admin-view">
+                    <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+                        <div class="flex justify-between items-center p-6 border-b border-gray-200">
+                            <h2 class="text-xl font-semibold text-gray-800">🧠 DISC Results</h2>
+                            <button 
+                                id="refreshDiscBtn" 
+                                class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm transition duration-200"
+                            >
+                                🔄 Refresh
+                            </button>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Employee</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                                        <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">D</th>
+                                        <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">I</th>
+                                        <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">S</th>
+                                        <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">C</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Summary</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="discResultsTableBody" class="bg-white divide-y divide-gray-200">
+                                    <tr>
+                                        <td colspan="7" class="px-6 py-8 text-center text-gray-500">
+                                            <div class="flex flex-col items-center">
+                                                <div class="text-4xl mb-2">📊</div>
+                                                <p>Belum ada hasil DISC. Tunggu peserta menyelesaikan tes.</p>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pauli Results View -->
+                <div id="pauliResultsView" class="admin-view hidden">
+                    <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+                        <div class="flex justify-between items-center p-6 border-b border-gray-200">
+                            <h2 class="text-xl font-semibold text-gray-800">🔢 Pauli Results</h2>
+                            <button 
+                                id="refreshPauliBtn" 
+                                class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm transition duration-200"
+                            >
+                                🔄 Refresh
+                            </button>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Employee</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                                        <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Total Correct</th>
+                                        <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Total Wrong</th>
+                                        <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Speed</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Concentration Trend</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="pauliResultsTableBody" class="bg-white divide-y divide-gray-200">
+                                    <tr>
+                                        <td colspan="6" class="px-6 py-8 text-center text-gray-500">
+                                            <div class="flex flex-col items-center">
+                                                <div class="text-4xl mb-2">📈</div>
+                                                <p>Belum ada hasil Pauli. Tunggu peserta menyelesaikan tes.</p>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Combined Analysis View -->
+                <div id="combinedAnalysisView" class="admin-view hidden">
+                    <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+                        <div class="flex justify-between items-center p-6 border-b border-gray-200">
+                            <h2 class="text-xl font-semibold text-gray-800">📋 Combined Analysis</h2>
+                            <button 
+                                id="refreshCombinedBtn" 
+                                class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm transition duration-200"
+                            >
+                                🔄 Refresh
+                            </button>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Employee</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">DISC Summary</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Pauli Summary</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Combined Fit</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="combinedAnalysisTableBody" class="bg-white divide-y divide-gray-200">
+                                    <tr>
+                                        <td colspan="5" class="px-6 py-8 text-center text-gray-500">
+                                            <div class="flex flex-col items-center">
+                                                <div class="text-4xl mb-2">🔄</div>
+                                                <p>Belum ada analisis gabungan. Tunggu peserta menyelesaikan kedua tes.</p>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+
+            </div>
+        </div>
+    </main>
+
+    <!-- Loading Modal -->
+    <div id="loadingModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white p-8 rounded-lg text-center">
+            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p class="text-gray-700" id="loadingText">Memproses...</p>
+        </div>
+    </div>
+
+    <!-- Validation Error Modal -->
+    <div id="validationModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white p-8 rounded-lg text-center max-w-md mx-4">
+            <div class="text-4xl mb-4">⚠️</div>
+            <h3 class="text-xl font-bold text-gray-800 mb-4">Perhatian!</h3>
+            <p class="text-gray-600 mb-6">Silakan Pilih Berbeda, Tidak Boleh Sama Antara Paling Sesuai dan Paling Tidak Sesuai</p>
+            <button id="closeValidationModal" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition duration-200">
+                OK, Mengerti
+            </button>
+        </div>
+    </div>
+
+    <!-- Employee Detail Modal -->
+    <div id="employeeDetailModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-lg shadow-xl max-w-6xl w-full max-h-full overflow-y-auto">
+            <div class="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center">
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-800" id="modalEmployeeName">Employee Details</h2>
+                    <p class="text-gray-600" id="modalEmployeeInfo">Loading...</p>
+                </div>
+                <button id="closeEmployeeModal" class="text-gray-400 hover:text-gray-600 transition duration-200">
+                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            
+            <div id="employeeDetailContent" class="p-6">
+                <!-- Content will be populated by JavaScript -->
+            </div>
+        </div>
+    </div>
+
+    <script src="js/main.js"></script>
+</body>
+</html>
